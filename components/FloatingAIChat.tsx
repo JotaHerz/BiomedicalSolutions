@@ -22,16 +22,25 @@ const FloatingAIChat: React.FC = () => {
     if (!input.trim() || isLoading) return;
 
     const userMsg: Message = { role: 'user', text: input };
-    setMessages(prev => [...prev, userMsg]);
+    const currentMessages = [...messages, userMsg];
+    setMessages(currentMessages);
     setInput('');
     setIsLoading(true);
 
-    const history = messages.map(m => ({
-      role: m.role === 'model' ? 'model' : 'user',
-      parts: [{ text: m.text }]
-    }));
+    // Preparamos el historial para la API:
+    // Filtramos el mensaje de bienvenida inicial que es rol 'model'
+    const apiHistory = currentMessages
+      .filter((m, index) => !(index === 0 && m.role === 'model'))
+      .map(m => ({
+        role: m.role,
+        parts: [{ text: m.text }]
+      }));
+    
+    // El último mensaje se envía por separado en el service, así que lo quitamos del history
+    const lastMessage = apiHistory.pop();
 
-    const response = await gemini.sendMessage(input, history);
+    const response = await gemini.sendMessage(lastMessage?.parts[0].text || input, apiHistory);
+    
     setMessages(prev => [...prev, { role: 'model', text: response }]);
     setIsLoading(false);
   };
