@@ -1,0 +1,8 @@
+{
+  "name": "BioMedics Solutions - Gestión de Equipos Biomédicos",
+  "description": "Plataforma integral para la gestión, mantenimiento y consultoría de tecnología médica e ingeniería clínica.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
