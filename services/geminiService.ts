@@ -16,16 +16,9 @@ Responde de manera profesional, técnica pero clara. Si te preguntan algo fuera 
 export class GeminiService {
   async sendMessage(message: string, history: { role: string; parts: { text: string }[] }[] = []) {
     try {
-      // Obtenemos la API KEY de las variables de entorno
-      const apiKey = process.env.API_KEY;
-      
-      if (!apiKey) {
-        console.error("Error: API_KEY no configurada en el entorno.");
-        return "El servicio de consultoría IA no está disponible en este momento. Por favor, contacte a soporte.";
-      }
-
-      // Creamos la instancia justo antes de usarla
-      const ai = new GoogleGenAI({ apiKey });
+      // Usamos directamente process.env.API_KEY como requiere la SDK
+      // La instancia se crea en cada llamada para asegurar robustez en el despliegue
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -39,10 +32,10 @@ export class GeminiService {
         },
       });
 
-      return response.text || "No he podido generar una respuesta.";
+      return response.text || "No se pudo obtener una respuesta técnica en este momento.";
     } catch (error) {
-      console.error("Gemini API Error:", error);
-      return "Lo siento, he tenido un problema técnico al procesar tu consulta. Por favor, intenta de nuevo más tarde.";
+      console.error("Error al conectar con la IA de BioMedics:", error);
+      return "Lo sentimos, el servicio de consultoría IA no está configurado correctamente en el servidor. Por favor, contacte con el administrador técnico de BioMedics Solutions.";
     }
   }
 }
