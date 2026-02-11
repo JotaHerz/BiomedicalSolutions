@@ -3,51 +3,68 @@ import { GoogleGenAI } from "@google/genai";
 
 const SYSTEM_INSTRUCTION = `
 Eres un consultor experto senior en Ingeniería Clínica y Gestión de Equipos Biomédicos de la empresa "BioMedics Solutions".
-Tu objetivo es ayudar a profesionales de la salud, ingenieros y administradores de hospitales con dudas sobre:
-1. Mantenimiento preventivo y correctivo de equipos médicos.
-2. Normativas internacionales (ISO 13485, IEC 60601) y locales sobre tecnología sanitaria.
-3. Ciclo de vida del equipo médico (adquisición, instalación, uso, mantenimiento y disposición final).
-4. Seguridad del paciente y gestión de riesgos tecnológicos.
-5. Calibración y metrología biomédica.
-
-Responde de manera profesional, técnica pero clara. Si te preguntan algo fuera del ámbito médico o de ingeniería clínica, redirige amablemente la conversación hacia los servicios de BioMedics Solutions.
+Tu objetivo es ayudar a profesionales de la salud, ingenieros y administradores de hospitales con dudas técnicas.
+Debes basar tus respuestas en estándares de calidad hospitalaria, seguridad eléctrica médica e ingeniería clínica.
+Si te preguntan algo fuera de este ámbito, redirige cortésmente la consulta a los servicios de BioMedics.
+Responde de forma concisa y profesional.
 `;
 
 export class GeminiService {
-  async sendMessage(message: string, history: { role: string; parts: { text: string }[] }[] = []) {
+  async sendMessage(message: string, history: { role: 'user' | 'model'; parts: { text: string }[] }[] = []) {
     try {
-      // Inicialización estricta según las guías
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+      // La instrucción exige usar exclusivamente process.env.API_KEY
+      const apiKey = process.env.API_KEY;
       
-      // Aseguramos que el historial enviado a Gemini siempre comience con un mensaje del usuario
-      const cleanedHistory = history.filter((msg, index) => {
-        // El primer mensaje del historial DEBE ser 'user' para evitar errores 400
-        if (index === 0 && msg.role !== 'user') return false;
-        return true;
-      });
+      if (!apiKey) {
+        console.error("API_KEY no detectada en process.env");
+        return "Error de configuración: No se detectó la clave de API. Asegúrese de haber configurado 'API_KEY' en las variables de entorno de Vercel y haber redesplegado la aplicación.";
+      }
+
+      const ai = new GoogleGenAI({ apiKey });
+
+      // Estructura de contenidos para la API
+      // El historial DEBE comenzar con un mensaje del rol 'user'.
+      // Si el historial proporcionado comienza con 'model', lo omitimos hasta encontrar el primer 'user'.
+      let validHistory = [...history];
+      while (validHistory.length > 0 && validHistory[0].role !== 'user') {
+        validHistory.shift();
+      }
+
+      // La API requiere que los mensajes alternen entre user y model. 
+      // Si hay dos mensajes del mismo rol seguidos, la API fallará con 400.
+      const finalContents = [
+        ...validHistory,
+        { role: 'user' as const, parts: [{ text: message }] }
+      ];
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
-        contents: [
-          ...cleanedHistory,
-          { role: 'user', parts: [{ text: message }] }
-        ],
+        contents: finalContents,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
           temperature: 0.7,
         },
       });
 
-      const text = response.text;
-      if (!text) {
-        throw new Error("Empty response from AI");
+      const textOutput = response.text;
+      if (!textOutput) {
+        throw new Error("Respuesta vacía de la IA");
       }
 
-      return text;
-    } catch (error) {
-      console.error("BioMedics AI Error:", error);
-      // Mensaje de error más informativo para el usuario final
-      return "Lo sentimos, el servicio de consultoría IA no pudo procesar tu solicitud. Por favor, asegúrate de que la API_KEY esté correctamente configurada en las variables de entorno de Vercel y que la conexión sea estable.";
+      return textOutput;
+    } catch (error: any) {
+      console.error("Error detallado de BioMedics AI:", error);
+      
+      // Manejo específico de errores comunes
+      if (error.message?.includes("API_KEY_INVALID") || error.message?.includes("403")) {
+        return "Error: La clave de API configurada no es válida o no tiene permisos. Verifique su clave en el dashboard de Google AI Studio.";
+      }
+      
+      if (error.message?.includes("400")) {
+        return "Error de protocolo: La secuencia de mensajes no es válida. Por favor, asegúrese de no enviar mensajes vacíos y reinicie el chat.";
+      }
+
+      return "Lo sentimos, el servicio de consultoría IA ha experimentado un error inesperado. Por favor, verifique su conexión a internet o la configuración de su clave de API en Vercel.";
     }
   }
 }

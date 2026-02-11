@@ -21,16 +21,20 @@ const AIChat: React.FC = () => {
     if (!input.trim() || isLoading) return;
 
     const userMsg: Message = { role: 'user', text: input };
+    const historyBeforeSend = [...messages];
     setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
 
-    const history = messages.map(m => ({
-      role: m.role === 'model' ? 'model' : 'user',
-      parts: [{ text: m.text }]
-    }));
+    // Formatear historial filtrando el saludo inicial de la IA
+    const apiHistory = historyBeforeSend
+      .filter((m, idx) => !(idx === 0 && m.role === 'model'))
+      .map(m => ({
+        role: m.role as 'user' | 'model',
+        parts: [{ text: m.text }]
+      }));
 
-    const response = await gemini.sendMessage(input, history);
+    const response = await gemini.sendMessage(input, apiHistory);
     setMessages(prev => [...prev, { role: 'model', text: response }]);
     setIsLoading(false);
   };
@@ -60,7 +64,6 @@ const AIChat: React.FC = () => {
 
           <div className="lg:w-2/3 w-full max-w-2xl">
             <div className="bg-slate-800 rounded-3xl shadow-2xl overflow-hidden border border-white/10 flex flex-col h-[600px]">
-              {/* Header */}
               <div className="bg-slate-700/50 p-4 border-b border-white/5 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-sky-500 rounded-full flex items-center justify-center">
@@ -73,8 +76,7 @@ const AIChat: React.FC = () => {
                 </div>
               </div>
 
-              {/* Chat Area */}
-              <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
+              <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4 chat-scrollbar">
                 {messages.map((m, i) => (
                   <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
                     <div className={`max-w-[85%] rounded-2xl px-4 py-3 ${m.role === 'user' ? 'bg-sky-600 text-white' : 'bg-slate-700 text-slate-100'} shadow-sm`}>
@@ -93,7 +95,6 @@ const AIChat: React.FC = () => {
                 )}
               </div>
 
-              {/* Input Area */}
               <div className="p-4 bg-slate-900/50 border-t border-white/5">
                 <div className="flex space-x-2">
                   <input
@@ -102,11 +103,11 @@ const AIChat: React.FC = () => {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                     placeholder="Escribe tu consulta biomédica aquí..."
-                    className="flex-1 bg-slate-700 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all"
+                    className="flex-1 bg-slate-700 border border-white/10 rounded-xl px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all text-white"
                   />
                   <button
                     onClick={handleSend}
-                    disabled={isLoading}
+                    disabled={isLoading || !input.trim()}
                     className="bg-sky-500 hover:bg-sky-600 disabled:bg-slate-600 text-white p-3 rounded-xl transition-all"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>

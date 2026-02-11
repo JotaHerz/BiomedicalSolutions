@@ -22,24 +22,21 @@ const FloatingAIChat: React.FC = () => {
     if (!input.trim() || isLoading) return;
 
     const userMsg: Message = { role: 'user', text: input };
-    const currentMessages = [...messages, userMsg];
-    setMessages(currentMessages);
+    const historyBeforeSend = [...messages];
+    setMessages(prev => [...prev, userMsg]);
     setInput('');
     setIsLoading(true);
 
-    // Preparamos el historial para la API:
-    // Filtramos el mensaje de bienvenida inicial que es rol 'model'
-    const apiHistory = currentMessages
-      .filter((m, index) => !(index === 0 && m.role === 'model'))
+    // Formatear historial para la API:
+    // Excluimos mensajes previos al primer 'user' (el saludo inicial de la IA)
+    const apiHistory = historyBeforeSend
+      .filter((m, idx) => !(idx === 0 && m.role === 'model'))
       .map(m => ({
-        role: m.role,
+        role: m.role as 'user' | 'model',
         parts: [{ text: m.text }]
       }));
-    
-    // El último mensaje se envía por separado en el service, así que lo quitamos del history
-    const lastMessage = apiHistory.pop();
 
-    const response = await gemini.sendMessage(lastMessage?.parts[0].text || input, apiHistory);
+    const response = await gemini.sendMessage(input, apiHistory);
     
     setMessages(prev => [...prev, { role: 'model', text: response }]);
     setIsLoading(false);
@@ -47,13 +44,11 @@ const FloatingAIChat: React.FC = () => {
 
   return (
     <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end">
-      {/* Chat Window */}
       {isOpen && (
         <div className="mb-4 w-[350px] sm:w-[400px] h-[500px] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col animate-slide-up origin-bottom-right">
-          {/* Header */}
           <div className="bg-sky-600 p-4 text-white flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-md text-white font-bold">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                 </svg>
@@ -66,17 +61,13 @@ const FloatingAIChat: React.FC = () => {
                 </div>
               </div>
             </div>
-            <button 
-              onClick={() => setIsOpen(false)}
-              className="hover:bg-white/10 p-1 rounded-full transition-colors"
-            >
+            <button onClick={() => setIsOpen(false)} className="hover:bg-white/10 p-1 rounded-full transition-colors">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
               </svg>
             </button>
           </div>
 
-          {/* Messages */}
           <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50 chat-scrollbar">
             {messages.map((m, i) => (
               <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -100,9 +91,8 @@ const FloatingAIChat: React.FC = () => {
             )}
           </div>
 
-          {/* Input */}
           <div className="p-4 bg-white border-t border-slate-100">
-            <div className="flex items-center space-x-2 bg-slate-100 rounded-2xl px-3 py-1 border border-slate-200 focus-within:ring-2 focus-within:ring-sky-500/20 focus-within:border-sky-500/50 transition-all">
+            <div className="flex items-center space-x-2 bg-slate-100 rounded-2xl px-3 py-1 border border-slate-200 focus-within:ring-2 focus-within:ring-sky-500/20 transition-all">
               <input
                 type="text"
                 value={input}
@@ -121,17 +111,14 @@ const FloatingAIChat: React.FC = () => {
                 </svg>
               </button>
             </div>
-            <p className="text-[10px] text-center text-slate-400 mt-2">
-              Potenciado por Gemini 3 Flash
-            </p>
+            <p className="text-[10px] text-center text-slate-400 mt-2">Potenciado por Gemini 3 Flash</p>
           </div>
         </div>
       )}
 
-      {/* Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white transition-all transform hover:scale-110 active:scale-95 ${
+        className={`w-14 h-14 rounded-full shadow-2xl flex items-center justify-center text-white transition-all transform hover:scale-110 ${
           isOpen ? 'bg-slate-800 rotate-90' : 'bg-sky-600 hover:bg-sky-700'
         }`}
       >
