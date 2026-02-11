@@ -10,27 +10,21 @@ Tu objetivo es ayudar a profesionales de la salud, ingenieros y administradores 
 4. Seguridad del paciente y gestión de riesgos tecnológicos.
 5. Calibración y metrología biomédica.
 
-REGLA CRÍTICA: La conversación debe comenzar siempre con un mensaje del usuario. 
 Responde de manera profesional, técnica pero clara. Si te preguntan algo fuera del ámbito médico o de ingeniería clínica, redirige amablemente la conversación hacia los servicios de BioMedics Solutions.
 `;
 
 export class GeminiService {
   async sendMessage(message: string, history: { role: string; parts: { text: string }[] }[] = []) {
     try {
-      // Validar que la API_KEY existe
-      const apiKey = process.env.API_KEY;
-      if (!apiKey) {
-        throw new Error("API_KEY_MISSING");
-      }
-
-      const ai = new GoogleGenAI({ apiKey });
+      // Inicialización estricta según las guías
+      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       
-      // FILTRADO CRÍTICO: El historial enviado a Gemini DEBE empezar con 'user'.
-      // Eliminamos cualquier mensaje inicial de 'model' (como el saludo de bienvenida).
-      let cleanedHistory = [...history];
-      while (cleanedHistory.length > 0 && cleanedHistory[0].role !== 'user') {
-        cleanedHistory.shift();
-      }
+      // Aseguramos que el historial enviado a Gemini siempre comience con un mensaje del usuario
+      const cleanedHistory = history.filter((msg, index) => {
+        // El primer mensaje del historial DEBE ser 'user' para evitar errores 400
+        if (index === 0 && msg.role !== 'user') return false;
+        return true;
+      });
 
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
@@ -44,15 +38,16 @@ export class GeminiService {
         },
       });
 
-      return response.text || "No se pudo obtener una respuesta técnica en este momento.";
-    } catch (error: any) {
-      console.error("Error en BioMedics AI Service:", error);
-      
-      if (error.message === "API_KEY_MISSING") {
-        return "Error: La clave de API no está configurada en Vercel. Por favor, añada API_KEY en las variables de entorno.";
+      const text = response.text;
+      if (!text) {
+        throw new Error("Empty response from AI");
       }
-      
-      return "Lo sentimos, hubo un problema al procesar su consulta técnica. Por favor, intente de nuevo en unos segundos.";
+
+      return text;
+    } catch (error) {
+      console.error("BioMedics AI Error:", error);
+      // Mensaje de error más informativo para el usuario final
+      return "Lo sentimos, el servicio de consultoría IA no pudo procesar tu solicitud. Por favor, asegúrate de que la API_KEY esté correctamente configurada en las variables de entorno de Vercel y que la conexión sea estable.";
     }
   }
 }
