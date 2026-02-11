@@ -14,15 +14,20 @@ Responde de manera profesional, técnica pero clara. Si te preguntan algo fuera 
 `;
 
 export class GeminiService {
-  private ai: any;
-
-  constructor() {
-    this.ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
-  }
-
   async sendMessage(message: string, history: { role: string; parts: { text: string }[] }[] = []) {
     try {
-      const response = await this.ai.models.generateContent({
+      // Obtenemos la API KEY de las variables de entorno
+      const apiKey = process.env.API_KEY;
+      
+      if (!apiKey) {
+        console.error("Error: API_KEY no configurada en el entorno.");
+        return "El servicio de consultoría IA no está disponible en este momento. Por favor, contacte a soporte.";
+      }
+
+      // Creamos la instancia justo antes de usarla
+      const ai = new GoogleGenAI({ apiKey });
+      
+      const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: [
           ...history,
@@ -34,10 +39,10 @@ export class GeminiService {
         },
       });
 
-      return response.text;
+      return response.text || "No he podido generar una respuesta.";
     } catch (error) {
       console.error("Gemini API Error:", error);
-      return "Lo siento, he tenido un problema técnico al procesar tu consulta. Por favor, intenta de nuevo o contacta a nuestro equipo de soporte.";
+      return "Lo siento, he tenido un problema técnico al procesar tu consulta. Por favor, intenta de nuevo más tarde.";
     }
   }
 }
